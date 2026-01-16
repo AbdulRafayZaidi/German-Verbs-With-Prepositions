@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>German Verb Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="verbs.js"></script>
+    <style>
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+
+    <div id="app" class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8 mt-10">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-600">German Verb Master</h1>
+            <p id="progress" class="text-gray-500 mt-2">Ready to learn?</p>
+        </div>
+
+        <div id="menu-mode" class="flex flex-col gap-4">
+            <button onclick="startLearning()" class="bg-blue-500 text-white py-4 rounded-lg font-bold hover:bg-blue-600 transition">
+                Start Learning Session (10 Verbs)
+            </button>
+        </div>
+
+        <div id="learning-mode" class="hidden">
+            <div class="bg-blue-50 p-6 rounded-lg mb-6">
+                <h2 id="learn-verb" class="text-4xl font-bold text-gray-800">Verb</h2>
+                <p id="learn-prep" class="text-xl text-blue-600 font-semibold mt-2">Preposition + Case</p>
+                <div class="mt-4 p-4 bg-white border-l-4 border-blue-400 italic text-gray-700">
+                    <p id="learn-example">Example sentence goes here.</p>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Write your example sentence (<span id="sentence-count">0</span>/3):</label>
+                <textarea id="user-sentence" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none" rows="3" placeholder="Type your sentence here..."></textarea>
+                <button id="submit-sentence" onclick="handleSentenceSubmit()" class="mt-4 w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600">Submit Sentence</button>
+            </div>
+        </div>
+
+        <div id="testing-mode" class="hidden">
+            <div class="mb-8">
+                <p class="text-sm uppercase tracking-wide text-gray-400 font-bold">Translate & Complete:</p>
+                <p id="test-translation" class="text-xl font-medium text-gray-800 mb-4">English translation here.</p>
+                <p id="test-sentence" class="text-2xl font-bold text-blue-700">German ______ ______ sentence.</p>
+            </div>
+            <div id="options-grid" class="grid grid-cols-1 gap-3">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionVerbs = [];
+        let currentIndex = 0;
+        let sentencesWritten = 0;
+
+        function startLearning() {
+            // Pick 10 random verbs (or all if less than 10)
+            sessionVerbs = [...verbData].sort(() => 0.5 - Math.random()).slice(0, 10);
+            currentIndex = 0;
+            showMode('learning');
+            updateLearningView();
+        }
+
+        function showMode(mode) {
+            document.getElementById('menu-mode').classList.add('hidden');
+            document.getElementById('learning-mode').classList.add('hidden');
+            document.getElementById('testing-mode').classList.add('hidden');
+            document.getElementById(mode + '-mode').classList.remove('hidden');
+        }
+
+        function updateLearningView() {
+            const verb = sessionVerbs[currentIndex];
+            document.getElementById('progress').innerText = `Verb ${currentIndex + 1} of ${sessionVerbs.length}`;
+            document.getElementById('learn-verb').innerText = verb.verb;
+            document.getElementById('learn-prep').innerText = `${verb.preposition} + ${verb.case}`;
+            document.getElementById('learn-example').innerText = verb.example;
+            document.getElementById('sentence-count').innerText = sentencesWritten;
+            document.getElementById('user-sentence').value = '';
+        }
+
+        function handleSentenceSubmit() {
+            const input = document.getElementById('user-sentence').value.trim();
+            if (input.length < 5) {
+                alert("Please write a full sentence!");
+                return;
+            }
+            
+            sentencesWritten++;
+            if (sentencesWritten < 3) {
+                document.getElementById('sentence-count').innerText = sentencesWritten;
+                document.getElementById('user-sentence').value = '';
+            } else {
+                sentencesWritten = 0;
+                currentIndex++;
+                if (currentIndex < sessionVerbs.length) {
+                    updateLearningView();
+                } else {
+                    alert("Learning session complete! Now, let's test your knowledge.");
+                    startTesting();
+                }
+            }
+        }
+
+        function startTesting() {
+            currentIndex = 0;
+            showMode('testing');
+            updateTestingView();
+        }
+
+        function updateTestingView() {
+            const verb = sessionVerbs[currentIndex];
+            document.getElementById('progress').innerText = `Test: Question ${currentIndex + 1} of ${sessionVerbs.length}`;
+            document.getElementById('test-translation').innerText = verb.translation;
+            
+            // Mask the verb and preposition in the example
+            const maskedSentence = verb.example.replace(verb.verb, "_______").replace(verb.preposition, "_______");
+            document.getElementById('test-sentence').innerText = maskedSentence;
+
+            // Generate options
+            const options = [
+                { text: `${verb.verb} ${verb.preposition}`, correct: true },
+                ...getRandomDistractors(verb)
+            ].sort(() => 0.5 - Math.random());
+
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "border-2 border-gray-200 p-4 rounded-xl text-left hover:border-blue-500 hover:bg-blue-50 transition font-semibold";
+                btn.innerText = opt.text;
+                btn.onclick = () => handleTestAnswer(opt.correct);
+                grid.appendChild(btn);
+            });
+        }
+
+        function getRandomDistractors(correctVerb) {
+            return verbData
+                .filter(v => v.verb !== correctVerb.verb)
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 3)
+                .map(v => ({ text: `${v.verb} ${v.preposition}`, correct: false }));
+        }
+
+        function handleTestAnswer(isCorrect) {
+            if (isCorrect) {
+                alert("Correct!");
+                currentIndex++;
+                if (currentIndex < sessionVerbs.length) {
+                    updateTestingView();
+                } else {
+                    alert("Congratulations! You've finished the session.");
+                    location.reload();
+                }
+            } else {
+                alert("Try again!");
+            }
+        }
+    </script>
+</body>
+</html>
